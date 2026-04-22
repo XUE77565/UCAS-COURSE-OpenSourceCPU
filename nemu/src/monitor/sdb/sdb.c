@@ -17,6 +17,7 @@
 #include <cpu/cpu.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <memory/paddr.h>
 #include "sdb.h"
 
 static int is_batch_mode = false;
@@ -61,10 +62,63 @@ static int cmd_si(char *args) {
   return 0;
 }
 
+static int cmd_info(char *args) {
+  if (args == NULL) {
+    printf("Usage: info [r|w]\n");
+    return 0;
+  }
+
+  if (strcmp(args, "r") == 0) {
+    isa_reg_display();
+  }
+  else if (strcmp(args, "w") == 0) {
+    //wp_display();
+  }
+  else {
+    printf("Unknown info command '%s'\n", args);
+  }
+  return 0;
+}
+
+static int cmd_x(char *args) {
+  printf("args = %s\n", args);
+  //The first argument is the number of 4-byte words to be scanned, 
+  //and the second argument is the expression to be evaluated.
+  char *arg_end = args + strlen(args);
+  char *num = strtok(args, " ");
+  char *expr = num + strlen(num) + 1;
+
+  if(expr >= arg_end) {
+    expr = NULL;
+  }
+
+  if (args == NULL || expr == NULL) {
+    printf("Usage: x N EXPR\n");
+    return 0;
+  }
+
+  int n = atoi(num);
+  paddr_t addr;
+  if (sscanf(expr, FMT_PADDR , &addr) != 1) {
+    printf("Invalid address format: %s\n", expr);
+    return 0;
+  }
+
+  //scan the memory and print the content
+  for (int i = 0; i < n; i++) {
+    paddr_t current_addr = addr + i * 4;
+    word_t data = paddr_read(current_addr, 4);
+    printf(FMT_PADDR ": " FMT_WORD "\n", current_addr, data);
+  }
+
+  return 0;
+}
+
+
+
 
 static int cmd_help(char *args);
 
-//static int cmd_si
 
 static struct {
   const char *name;
@@ -75,6 +129,8 @@ static struct {
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
   { "si", "Si N executes N instructions, default steps = 1", cmd_si },
+  { "info", "Print the register status or watchpoint information", cmd_info },
+  { "x", "Scan the memory: x N EXPR, evaluate EXPR and scan N words in memory", cmd_x },
 
   /* TODO: Add more commands */
 
@@ -126,6 +182,7 @@ void sdb_mainloop() {
      * which may need further parsing
      */
     char *args = cmd + strlen(cmd) + 1;
+    //printf("args = %s\n", args);
     if (args >= str_end) {
       args = NULL;
     }

@@ -23,7 +23,13 @@ const char *regs[] = {
   "s8", "s9", "s10", "s11", "t3", "t4", "t5", "t6"
 };
 
+//Use printf to display the register values,
 void isa_reg_display() {
+  int i;
+  for (i = 0; i < 32; i ++) {
+    printf("%s = " FMT_WORD " ", regs[i], cpu.gpr[i]);
+    if ((i + 1) % 4 == 0) { printf("\n"); }
+  }
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
