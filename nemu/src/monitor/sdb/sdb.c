@@ -52,7 +52,19 @@ static int cmd_q(char *args) {
   return -1;
 }
 
+static int cmd_si(char *args) {
+  int n = 1;
+  if (args != NULL) {
+    n = atoi(args);
+  }
+  cpu_exec(n);
+  return 0;
+}
+
+
 static int cmd_help(char *args);
+
+//static int cmd_si
 
 static struct {
   const char *name;
@@ -62,6 +74,7 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
+  { "si", "Si N executes N instructions, default steps = 1", cmd_si },
 
   /* TODO: Add more commands */
 
@@ -125,6 +138,7 @@ void sdb_mainloop() {
     int i;
     for (i = 0; i < NR_CMD; i ++) {
       if (strcmp(cmd, cmd_table[i].name) == 0) {
+        //printf("FOUND COMMAND\n");
         if (cmd_table[i].handler(args) < 0) { return; }
         break;
       }
