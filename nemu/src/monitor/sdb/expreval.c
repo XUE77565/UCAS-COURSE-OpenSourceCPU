@@ -12,7 +12,7 @@ enum {
   TK_REG,
 };
 
-uint32_t expreval(int p, int q, Token *tokens, bool *success) {
+int expreval(int p, int q, Token *tokens, bool *success) {
     if(p > q) {
         *success = false;
         printf("Bad expression\n");
@@ -43,7 +43,7 @@ uint32_t expreval(int p, int q, Token *tokens, bool *success) {
     }
     //divide the expression into two parts by the main operator, and evaluate the two parts recursively
     else {
-        uint32_t val1, val2;
+        int val1, val2;
         int op = -1;
         op = find_main_operator(p, q, tokens);
         if(op == -1) {
@@ -53,7 +53,17 @@ uint32_t expreval(int p, int q, Token *tokens, bool *success) {
             return 0;
         }
         val1 = expreval(p, op - 1, tokens, success);
+        // printf("Strings of tokens from %d to %d: ", p, op - 1);
+        // for(int i = p; i < op; i++) {
+        //     printf("%s ", tokens[i].str);
+        // }
+        // printf("\n[%d, %d]val1 = %u\n", p, op - 1, val1);
         val2 = expreval(op + 1, q, tokens, success);
+        // printf("Strings of tokens from %d to %d: ", op + 1, q);
+        // for(int i = op + 1; i <= q; i++) {
+        //     printf("%s ", tokens[i].str);
+        // }
+        // printf("\n[%d, %d]val2 = %u\n", op + 1, q, val2);
 
         switch (tokens[op].type) {
             case '+': return val1 + val2;
@@ -89,12 +99,16 @@ bool check_parentheses(int p, int q, Token *tokens) {
         }
         else if(tokens[i].type == ')') {
             if(depth == 0) {
+                //p is matching with a ')' before q, so p and q are not a pair of parentheses
                 return false;
             }
             depth--;
         }
     }
-    return depth == 0;
+    //EVEN IF DEPTH IS 0, IT DOES NOT MEAN THAT THE PARENTHESES ARE A PAIR, 
+    //BECAUSE THERE MAY BE OTHER PARENTHESES INSIDE,
+    //LIKE (A+B)*(C+D), THE PARENTHESES AROUND A+B AND C+D ARE NOT A PAIR
+    return true;
 }
 
 int find_main_operator(int p, int q, Token *tokens) {
@@ -130,7 +144,25 @@ int find_main_operator(int p, int q, Token *tokens) {
             }
         }
     }
+    //printf("____p = %d, q = %d, main operator: %c at position %d___\n", p, q, tokens[main_op].type, main_op);
     return main_op;
+}
+
+bool valid_parentheses(Token *tokens, int nr_token) {
+    int depth = 0;
+    for(int i = 0; i < nr_token; i++) {
+        if(tokens[i].type == '(') {
+            depth++;
+        }
+        else if(tokens[i].type == ')') {
+            depth--;
+            if(depth < 0) {
+                printf("Invalid parentheses at token %d\n", i);
+                return false;
+            }
+        }
+    }
+    return depth == 0;
 }
 
 

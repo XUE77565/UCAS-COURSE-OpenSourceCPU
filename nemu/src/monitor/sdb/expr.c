@@ -72,8 +72,8 @@ void init_regex() {
   }
 }
 
-
-static Token tokens[32] __attribute__((used)) = {};
+//Enlarge the size of tokens to pass the test
+static Token tokens[65536] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 static bool make_token(char *e) {
@@ -90,8 +90,8 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+        //Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+        //   i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -118,7 +118,7 @@ static bool make_token(char *e) {
 
         //temp test
         if(rules[i].token_type != TK_NOTYPE) {
-          if(nr_token >= 32) {
+          if(nr_token >= 65536) {
             printf("Too many tokens, increase the size of tokens array.\n");
             //maybe we can use malloc to distribute the memory for tokens array dynamically
             return false;
@@ -150,7 +150,16 @@ word_t expr(char *e, bool *success) {
   int p = 0;
   int q = nr_token - 1;
 
-  uint32_t result = expreval(p, q, tokens, success);
+  //First check if the parentheses in the expression are valid,
+  bool check_parentheses = valid_parentheses(tokens, nr_token); 
+  if(!check_parentheses) {
+    *success = false;
+    printf("Invalid parentheses in expression: %s\n", e);
+    return 0;
+  }
+  //Log("PASSED parentheses check\n");
+
+  int result = expreval(p, q, tokens, success);
 
   if(*success) {
     return result;

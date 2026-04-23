@@ -15,6 +15,7 @@
 
 #include <isa.h>
 #include <memory/paddr.h>
+#include "sdb/sdb.h"
 
 void init_rand();
 void init_log(const char *log_file);
@@ -129,6 +130,62 @@ void init_monitor(int argc, char *argv[]) {
   init_sdb();
 
   IFDEF(CONFIG_ITRACE, init_disasm());
+
+  /* Check for batch mode argument */
+  int i;
+  int checkeval = 0;
+  for (i = 1; i < argc; i ++) {
+    if (strcmp(argv[i], "-b") == 0) {
+      sdb_set_batch_mode();
+      checkeval = 1;
+      break;
+    }
+  }
+
+  if (checkeval) {
+    FILE *fp = fopen("tools/gen-expr/input", "r");
+    Assert(fp, "Failed to open input file for batch mode.");
+
+    char line[65536];
+    int line_num = 0;
+    while (fgets(line, sizeof(line), fp)) {
+      line_num++;
+      unsigned file_result;
+      char expression[65536];
+      int ret = sscanf(line, "%u %[^\n]", &file_result, expression);
+      if (ret != 2) {
+        printf("Error reading line %d from input file.\n", line_num);
+        continue;
+      }
+
+      bool success = true;
+      word_t eval_result = expr(expression, &success);
+
+      if (success) {
+        if(line_num % 100 == 0) {
+          printf("Checked [%d/10000] expressions...\n", line_num);
+        }
+        if (eval_result == file_result) {
+          //printf("Expression test passed: %s == %u\n", expression, eval_result);
+        } else {
+          printf("Expression test FAILED on line %d:\n", line_num);
+          printf("  Expression: %s\n", expression);
+          printf("  Expected result: %u\n", file_result);
+          printf("  Evaluated result: %u\n", (unsigned)eval_result);
+          assert(0);
+          // Optionally, you can decide to halt NEMU on failure
+          // nemu_state.state = NEMU_ABORT;
+          // return;
+        }
+      } else {
+        printf("Expression evaluation failed for: %s\n", expression);
+      }
+    }
+    fclose(fp);
+    // Exit after batch processing
+    nemu_state.state = NEMU_END;
+    return;
+  }
 
   /* Display welcome message. */
   welcome();
