@@ -58,6 +58,10 @@ static int cmd_si(char *args) {
   if (args != NULL) {
     n = atoi(args);
   }
+  if(n <= 0) {
+    printf("Invalid number of steps: %d\n", n);
+    return 0;
+  }
   cpu_exec(n);
   return 0;
 }

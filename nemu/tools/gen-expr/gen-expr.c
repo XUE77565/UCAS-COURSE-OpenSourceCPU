@@ -31,8 +31,66 @@ static char *code_format =
 "  return 0; "
 "}";
 
+//randomely select a number between 0 and n
+static int choose(int n) {
+  //to avoid the bias caused by the remainder operation, we use a loop to discard the random numbers that are greater than or equal to the largest multiple of n that is less than or equal to RAND_MAX.
+  int limit = RAND_MAX - RAND_MAX % n;
+  int result;
+  do {
+    result = rand();
+  } while (result >= limit);
+  return result % n;
+}
+
+//randomly generate an expression and store it in buf, the result of the expression is stored in code_buf
+
 static void gen_rand_expr() {
-  buf[0] = '\0';
+  int op = choose(3);
+  if(strlen(buf) > 50) {
+    op = 0; // generate a number when the expression is too long
+  }
+  switch(op) {
+    case 0: {
+      //generate a number
+      int num = rand() % 100;
+      char num_str[16];
+      sprintf(num_str, "%d", num);
+      strcat(buf, num_str);
+      break;
+    }
+    case 1: {
+      //generate an expression with parentheses
+      strcat(buf, "(");
+      gen_rand_expr();
+      strcat(buf, ")");
+      break;
+    }
+    case 2: {
+      //generate an expression with an operator
+      gen_rand_expr();
+      char op_str[4];
+      int op_type = choose(4);
+      switch(op_type) {
+        case 0: sprintf(op_str, " + "); break;
+        case 1: sprintf(op_str, " - "); break;
+        case 2: sprintf(op_str, " * "); break;
+        case 3: sprintf(op_str, " / "); break;
+      }
+      strcat(buf, op_str);
+      //a simple way
+      if(op_type == 3) {
+        //to avoid division by zero, we generate a number between 1 and 100 for the right operand of the division operator
+        int num = rand() % 100 + 1;
+        char num_str[16];
+        sprintf(num_str, "%d", num);
+        strcat(buf, num_str);
+      }
+      else {
+        gen_rand_expr();
+      }
+      break;
+    }
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -44,6 +102,7 @@ int main(int argc, char *argv[]) {
   }
   int i;
   for (i = 0; i < loop; i ++) {
+    memset(buf, 0, sizeof(buf)); // Clear the buffer at the beginning of each loop
     gen_rand_expr();
 
     sprintf(code_buf, code_format, buf);

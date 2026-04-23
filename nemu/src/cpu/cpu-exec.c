@@ -43,10 +43,11 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 static void exec_once(Decode *s, vaddr_t pc) {
   s->pc = pc;
   s->snpc = pc;
-  isa_exec_once(s);
-  cpu.pc = s->dnpc;
+  isa_exec_once(s);//execute the instruction and update the snpc and dnpc in s
+  cpu.pc = s->dnpc;//update the pc in cpu state
 #ifdef CONFIG_ITRACE
   char *p = s->logbuf;
+  //prints the s-pc which is the pc after executing the instruction.
   p += snprintf(p, sizeof(s->logbuf), FMT_WORD ":", s->pc);
   int ilen = s->snpc - s->pc;
   int i;
