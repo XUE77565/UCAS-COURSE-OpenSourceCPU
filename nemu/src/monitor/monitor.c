@@ -163,7 +163,7 @@ void init_monitor(int argc, char *argv[]) {
 
       if (success) {
         if(line_num % 100 == 0) {
-          printf("Checked [%d/10000] expressions...\n", line_num);
+          printf("Checked [%d/100000] expressions...\n", line_num);
         }
         if (eval_result == file_result) {
           //printf("Expression test passed: %s == %u\n", expression, eval_result);

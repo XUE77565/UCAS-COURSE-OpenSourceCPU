@@ -10,6 +10,9 @@ enum {
   TK_HEX, 
   TK_DEC, 
   TK_REG,
+  TK_NEQ,
+  TK_DEREF,
+  TK_AND,
 };
 
 int expreval(int p, int q, Token *tokens, bool *success) {
@@ -28,6 +31,21 @@ int expreval(int p, int q, Token *tokens, bool *success) {
         else if (tokens[p].type == TK_DEC) {
             *success = true;
             return strtoul(tokens[p].str, NULL, 10);
+        }
+        else if (tokens[p].type == TK_REG) {
+            *success = true;
+            //remove the '$' in the register name
+            char reg_name[32];
+            memset(reg_name, 0, sizeof(reg_name));
+            strncpy(reg_name, tokens[p].str + 1, sizeof(reg_name) - 1);
+            int reg_index = isa_reg_str2val(reg_name, success);
+            if(reg_index == -1) {
+                *success = false;
+                printf("Unknown register: %s\n", reg_name);
+                assert(0);
+                return 0;
+            }
+            return reg_index;
         }
         //TODO: we can also eval the register value here, but we need to parse the register name first
         else {
@@ -66,6 +84,9 @@ int expreval(int p, int q, Token *tokens, bool *success) {
         // printf("\n[%d, %d]val2 = %u\n", op + 1, q, val2);
 
         switch (tokens[op].type) {
+            case TK_EQ: return val1 == val2;
+            case TK_NEQ: return val1 != val2;
+            case TK_AND: return val1 && val2;
             case '+': return val1 + val2;
             case '-': return val1 - val2;
             case '*': return val1 * val2;
@@ -131,10 +152,13 @@ int find_main_operator(int p, int q, Token *tokens) {
         else if(depth == 0) { 
             int priority;
             switch (tokens[i].type) {
+                case TK_AND: priority = 0; break; // logical AND has the lowest priority
+                case TK_EQ:
+                case TK_NEQ: priority = 1; break; // equal and not equal
                 case '+':
-                case '-': priority = 1; break;
+                case '-': priority = 2; break;
                 case '*':
-                case '/': priority = 2; break;
+                case '/': priority = 3; break;
                 default: priority = 100; // a large number for unknown operators
             }
             //which is the rightmost operator with the lowest priority, because of the associativity of the operators

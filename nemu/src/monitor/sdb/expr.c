@@ -27,6 +27,9 @@ enum {
   TK_HEX, 
   TK_DEC, 
   TK_REG,
+  TK_NEQ,
+  TK_DEREF,
+  TK_AND,
 };
 
 static struct rule {
@@ -46,9 +49,11 @@ static struct rule {
   {"\\+", '+'},         // plus
   {"-", '-'},            // minus
   {"==", TK_EQ},        // equal
+  {"!=", TK_NEQ},    // not equal
   {"0[xX][0-9a-fA-F]+", TK_HEX},  // hexadecimal number
   {"[0-9]+", TK_DEC},             // decimal number
-  {"\\$[a-zA-Z]+", TK_REG}        // register
+  {"\\$[a-zA-Z]+", TK_REG},        // register
+  {"&&", TK_AND}        // logical AND operator
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -76,6 +81,24 @@ void init_regex() {
 static Token tokens[65536] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
+static bool check_deref(Token *tokens, int nr_token) {
+  if(nr_token >= 2) {
+    int last_token_type = tokens[nr_token - 2].type;
+    if(last_token_type == TK_NOTYPE || last_token_type == '(' || 
+       last_token_type== '+' || last_token_type == '-' ||
+       last_token_type == '*' || last_token_type == '/' ||
+       last_token_type== TK_EQ || last_token_type == TK_NEQ ||
+       last_token_type == TK_AND) {
+      return true;
+    }
+  }
+  else if(nr_token == 1) {
+    //if the '*' is the first token in the expression, it must be a dereference operator
+    return true;
+  }
+  return false;
+}
+
 static bool make_token(char *e) {
   int position = 0;
   int i;
@@ -100,22 +123,6 @@ static bool make_token(char *e) {
          * of tokens, some extra actions should be performed.
          */
 
-        // switch (rules[i].token_type) {
-        //   //General operations
-        //   default: {
-        //     memset(tokens[nr_token].str, 0, sizeof(tokens[nr_token].str));// Clear the string before copying
-        //     strncpy(tokens[nr_token].str, substr_start, substr_len);// Copy the matched substring to the token's str field
-        //     tokens[nr_token].type = rules[i].token_type;
-        //     nr_token++;
-        //     break;
-        //   }
-        //   case TK_NOTYPE: {
-        //     // Do nothing for spaces
-        //     break;
-        //   }
-        //   case 
-        // }
-
         //temp test
         if(rules[i].token_type != TK_NOTYPE) {
           if(nr_token >= 65536) {
@@ -127,6 +134,10 @@ static bool make_token(char *e) {
           strncpy(tokens[nr_token].str, substr_start, substr_len);// Copy the matched substring to the token's str field
           tokens[nr_token].type = rules[i].token_type;
           nr_token++;
+          //检查解引用
+          if(check_deref(tokens, nr_token) == true) {
+            tokens[nr_token - 1].type = TK_DEREF;
+          }
         }
 
         break;
@@ -159,7 +170,7 @@ word_t expr(char *e, bool *success) {
   }
   //Log("PASSED parentheses check\n");
 
-  int result = expreval(p, q, tokens, success);
+  uint32_t result = (uint32_t)expreval(p, q, tokens, success);
 
   if(*success) {
     return result;
