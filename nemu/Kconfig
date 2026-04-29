@@ -127,6 +127,12 @@ endmenu
 menu "Testing and Debugging"
 
 
+config WATCHPOINT
+  bool "Enable watchpoint"
+  default n
+  help
+    Enable watchpoints for NEMU. When enabled, NEMU will check all watchpoints after executing every instruction. This hurts performance.
+
 config TRACE
   bool "Enable tracer"
   default y

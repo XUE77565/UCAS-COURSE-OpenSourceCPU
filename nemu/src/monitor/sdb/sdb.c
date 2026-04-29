@@ -77,7 +77,8 @@ static int cmd_info(char *args) {
     isa_reg_display();
   }
   else if (strcmp(args, "w") == 0) {
-    //wp_display();
+    extern void wp_display();
+    wp_display();
   }
   else {
     printf("Unknown info command '%s'\n", args);
@@ -119,7 +120,61 @@ static int cmd_x(char *args) {
   return 0;
 }
 
+static int cmd_p(char *args) {
+  if (args == NULL) {
+    printf("Usage: p EXPR\n");
+    return 0;
+  }
 
+  bool success = false;
+  printf("Evaluating expression: %s\n", args);
+  word_t result = expr(args, &success);
+  if (success) {
+    printf(FMT_WORD "\n", result);
+  }
+  else {
+    printf("Failed to evaluate expression: %s\n", args);
+  }
+  return 0;
+}
+
+static int cmd_w(char *args) {
+  if (args == NULL) {
+    printf("Usage: w EXPR\n");
+    return 0;
+  }
+
+  WP *wp = new_wp();
+  if(wp == NULL) {
+    return 0;
+  }
+  strncpy(wp->expr, args, sizeof(wp->expr) - 1);
+  wp->expr[sizeof(wp->expr) - 1] = '\0'; // Ensure null-termination
+  bool success = false;
+  wp->old_value = expr(args, &success);
+  if(success == false) {
+    printf("Failed to evaluate expression: %s\n", args);
+    free_wp(wp);
+    return 0;
+  }
+  printf("Set watchpoint %d: %s = " FMT_WORD "\n", wp->NO, wp->expr, wp->old_value);
+  return 0;
+}
+
+static int cmd_d(char *args) {
+  if (args == NULL) {
+    printf("Usage: d N\n");
+    return 0;
+  }
+
+  int num = atoi(args);
+  if (delete_wp_by_no(num)) {
+    printf("Deleted watchpoint %d\n", num);
+  } else {
+    printf("No watchpoint number %d\n", num);
+  }
+  return 0;
+}
 
 
 static int cmd_help(char *args);
@@ -136,6 +191,9 @@ static struct {
   { "si", "Si N executes N instructions, default steps = 1", cmd_si },
   { "info", "Print the register status or watchpoint information", cmd_info },
   { "x", "Scan the memory: x N EXPR, evaluate EXPR and scan N words in memory", cmd_x },
+  { "p", "Evaluate the expression EXPR and print the result", cmd_p },
+  { "w", "Set a watchpoint for an expression EXPR", cmd_w },
+  { "d", "Delete the watchpoint with the given number N", cmd_d },
 
   /* TODO: Add more commands */
 

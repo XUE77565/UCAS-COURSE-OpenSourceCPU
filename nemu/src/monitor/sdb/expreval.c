@@ -3,6 +3,7 @@
 #include <isa.h>
 #include <regex.h>
 #include <stdlib.h>
+#include <memory/vaddr.h>
 
 enum {
   TK_NOTYPE = 256, 
@@ -16,6 +17,7 @@ enum {
 };
 
 int expreval(int p, int q, Token *tokens, bool *success) {
+    //printf("TK_DEC = %d, TK_HEX = %d, TK_REG = %d\n", TK_DEC, TK_HEX, TK_REG);
     if(p > q) {
         *success = false;
         printf("Bad expression\n");
@@ -32,6 +34,7 @@ int expreval(int p, int q, Token *tokens, bool *success) {
             *success = true;
             return strtoul(tokens[p].str, NULL, 10);
         }
+        //考虑解引用
         else if (tokens[p].type == TK_REG) {
             *success = true;
             //remove the '$' in the register name
@@ -61,7 +64,7 @@ int expreval(int p, int q, Token *tokens, bool *success) {
     }
     //divide the expression into two parts by the main operator, and evaluate the two parts recursively
     else {
-        int val1, val2;
+        int val1 = 0, val2 = 0;
         int op = -1;
         op = find_main_operator(p, q, tokens);
         if(op == -1) {
@@ -70,18 +73,31 @@ int expreval(int p, int q, Token *tokens, bool *success) {
             assert(0);
             return 0;
         }
-        val1 = expreval(p, op - 1, tokens, success);
-        // printf("Strings of tokens from %d to %d: ", p, op - 1);
-        // for(int i = p; i < op; i++) {
-        //     printf("%s ", tokens[i].str);
-        // }
-        // printf("\n[%d, %d]val1 = %u\n", p, op - 1, val1);
-        val2 = expreval(op + 1, q, tokens, success);
-        // printf("Strings of tokens from %d to %d: ", op + 1, q);
-        // for(int i = op + 1; i <= q; i++) {
-        //     printf("%s ", tokens[i].str);
-        // }
-        // printf("\n[%d, %d]val2 = %u\n", op + 1, q, val2);
+
+        //在找到解引用单目运算符之后，只用计算右侧的值
+        if(tokens[op].type == TK_DEREF) {
+            val2 = expreval(op + 1, q, tokens, success);
+            if(*success == false) {
+                return 0;
+            }
+        }
+        else {
+            val1 = expreval(p, op - 1, tokens, success);
+            // printf("Strings of tokens from %d to %d: ", p, op - 1);
+            // for(int i = p; i < op; i++) {
+            //     printf("%s ", tokens[i].str);
+            // }
+            // printf("\n[%d, %d]val1 = %u\n", p, op - 1, val1);
+            if(*success == false) {
+                return 0;
+            }
+            val2 = expreval(op + 1, q, tokens, success);
+            // printf("Strings of tokens from %d to %d: ", op + 1, q);
+            // for(int i = op + 1; i <= q; i++) {
+            //     printf("%s ", tokens[i].str);
+            // }
+            // printf("\n[%d, %d]val2 = %u\n", op + 1, q, val2);
+        }
 
         switch (tokens[op].type) {
             case TK_EQ: return val1 == val2;
@@ -98,6 +114,7 @@ int expreval(int p, int q, Token *tokens, bool *success) {
                     return 0;
                 }
                 return val1 / val2;
+            case TK_DEREF: return vaddr_read(val2, 4);
             default: 
                 *success = false;
                 printf("Unknown operator: %d\n", tokens[op].type);
@@ -159,10 +176,12 @@ int find_main_operator(int p, int q, Token *tokens) {
                 case '-': priority = 2; break;
                 case '*':
                 case '/': priority = 3; break;
+                case TK_DEREF: priority = 4; break; //解引用优先级最高
                 default: priority = 100; // a large number for unknown operators
             }
             //which is the rightmost operator with the lowest priority, because of the associativity of the operators
-            if(priority <= min_priority) { 
+            //考虑单目运算符左结合
+            if(priority < min_priority || (priority == min_priority && tokens[i].type != TK_DEREF)) { 
                 min_priority = priority;
                 main_op = i;
             }

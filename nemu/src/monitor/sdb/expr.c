@@ -52,7 +52,7 @@ static struct rule {
   {"!=", TK_NEQ},    // not equal
   {"0[xX][0-9a-fA-F]+", TK_HEX},  // hexadecimal number
   {"[0-9]+", TK_DEC},             // decimal number
-  {"\\$[a-zA-Z]+", TK_REG},        // register
+  {"\\$[a-zA-Z]+[0-9]*", TK_REG},        // register
   {"&&", TK_AND}        // logical AND operator
 };
 
@@ -85,9 +85,9 @@ static bool check_deref(Token *tokens, int nr_token) {
   if(nr_token >= 2) {
     int last_token_type = tokens[nr_token - 2].type;
     if(last_token_type == TK_NOTYPE || last_token_type == '(' || 
-       last_token_type== '+' || last_token_type == '-' ||
+       last_token_type == '+' || last_token_type == '-' ||
        last_token_type == '*' || last_token_type == '/' ||
-       last_token_type== TK_EQ || last_token_type == TK_NEQ ||
+       last_token_type == TK_EQ || last_token_type == TK_NEQ ||
        last_token_type == TK_AND) {
       return true;
     }
@@ -135,7 +135,7 @@ static bool make_token(char *e) {
           tokens[nr_token].type = rules[i].token_type;
           nr_token++;
           //检查解引用
-          if(check_deref(tokens, nr_token) == true) {
+          if(tokens[nr_token - 1].type == '*' && check_deref(tokens, nr_token) == true) {
             tokens[nr_token - 1].type = TK_DEREF;
           }
         }
@@ -160,6 +160,11 @@ word_t expr(char *e, bool *success) {
   }
   int p = 0;
   int q = nr_token - 1;
+  // printf("Tokens:\n");
+  // for (int i = 0; i < nr_token; i++) {
+  //   printf("  tokens[%d]: type = %d, str = '%s'\n", i, tokens[i].type, tokens[i].str);
+  // }
+  // printf("p = %d, q = %d\n", p, q);
 
   //First check if the parentheses in the expression are valid,
   bool check_parentheses = valid_parentheses(tokens, nr_token); 
@@ -170,7 +175,7 @@ word_t expr(char *e, bool *success) {
   }
   //Log("PASSED parentheses check\n");
 
-  uint32_t result = (uint32_t)expreval(p, q, tokens, success);
+  word_t result = (uint32_t)expreval(p, q, tokens, success);
 
   if(*success) {
     return result;

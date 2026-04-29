@@ -31,13 +31,20 @@ static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
 
 void device_update();
+extern void check_watchpoints();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE_COND
   if (ITRACE_COND) { log_write("%s\n", _this->logbuf); }
 #endif
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
+  
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+
+#ifdef CONFIG_WATCHPOINT
+  printf("Checking watchpoints...\n");
+  check_watchpoints();
+#endif
 }
 
 static void exec_once(Decode *s, vaddr_t pc) {
@@ -53,7 +60,7 @@ static void exec_once(Decode *s, vaddr_t pc) {
   int i;
   uint8_t *inst = (uint8_t *)&s->isa.inst;
 #ifdef CONFIG_ISA_x86
-  for (i = 0; i < ilen; i ++) {
+  //for (i = 0; i < ilen; i ++) {
 #else
   for (i = ilen - 1; i >= 0; i --) {
 #endif

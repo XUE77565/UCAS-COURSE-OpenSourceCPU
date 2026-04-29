@@ -23,6 +23,18 @@ typedef struct token {
   char str[32];
 } Token;
 
+#define EXPR_LEN 128
+
+typedef struct watchpoint {
+  int NO;
+  char expr[EXPR_LEN];
+  word_t old_value;
+  struct watchpoint *next;
+} WP;
+
 word_t expr(char *e, bool *success);
+WP* new_wp();
+void free_wp(WP *wp);
+bool delete_wp_by_no(int no);
 
 #endif
