@@ -50,7 +50,6 @@ int expreval(int p, int q, Token *tokens, bool *success) {
             }
             return reg_index;
         }
-        //TODO: we can also eval the register value here, but we need to parse the register name first
         else {
             *success = false;
             printf("p == q but encountered a non-numeric token: %d\n", tokens[p].type);
