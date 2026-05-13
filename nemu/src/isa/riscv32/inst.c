@@ -69,6 +69,7 @@ static int decode_exec(Decode *s) {
 
   R(0) = 0; // reset $zero to 0
 
+  //这里相当于自动执行了这条指令，返回0
   return 0;
 }
 
