@@ -114,6 +114,3 @@ void wp_display() {
   }
 }  
 
-
-/* TODO: Implement the functionality of watchpoint */
-
