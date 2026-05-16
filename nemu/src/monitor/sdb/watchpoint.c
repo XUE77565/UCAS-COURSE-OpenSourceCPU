@@ -87,7 +87,8 @@ bool delete_wp_by_no(int no) {
 }
 
 //检查监视点的值是否发生变化
-void check_watchpoints() {
+bool check_watchpoints() {
+  bool changed = false;
   WP *wp = NULL;
   bool success;
   for(wp = head; wp != NULL; wp = wp->next) {
@@ -102,8 +103,10 @@ void check_watchpoints() {
       printf("Old value = " FMT_WORD "\n", wp->old_value);
       printf("New value = " FMT_WORD "\n", new_value);
       wp->old_value = new_value;
+      changed = true;
     }
   }
+  return changed;
 }
 
 void wp_display() {

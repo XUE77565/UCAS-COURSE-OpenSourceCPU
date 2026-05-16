@@ -31,7 +31,7 @@ static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
 
 void device_update();
-extern void check_watchpoints();
+extern bool check_watchpoints();
 
 static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #ifdef CONFIG_ITRACE_COND
@@ -43,7 +43,12 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 
 #ifdef CONFIG_WATCHPOINT
   printf("Checking watchpoints...\n");
-  check_watchpoints();
+  bool changed = false;
+  changed = check_watchpoints();
+  if(changed) {
+    printf("Watchpoint triggered. Current instruction: %s\n", _this->logbuf);
+    //nemu_state.state = NEMU_STOP;
+  }
 #endif
 }
 
