@@ -28,7 +28,7 @@ char *strncpy(char *dst, const char *src, size_t n) {
     *ptr++ = *src++;
     i++;
   }
-  //如果src的长度不足n，填充剩余
+  //补全末尾
   *ptr = '\0';
   return dst;
 }
