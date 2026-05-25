@@ -13,12 +13,12 @@ for file in tests/*.c; do
   name=$(basename "$file" .c)
 
   # 跳过hello-str和string
-  if [[ "$name" == "hello-str" || "$name" == "string" ]]; then
-    # echo "=================================================="
-    # echo "Skipping test: $name (not supported in NEMU)"
-    # echo "=================================================="
-    continue
-  fi
+  # if [[ "$name" == "hello-str" || "$name" == "string" ]]; then
+  #   # echo "=================================================="
+  #   # echo "Skipping test: $name (not supported in NEMU)"
+  #   # echo "=================================================="
+  #   continue
+  # fi
   
   echo "=================================================="
   echo "Running test: $name"
