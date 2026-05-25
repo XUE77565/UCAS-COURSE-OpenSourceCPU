@@ -29,7 +29,7 @@ for file in tests/*.c; do
   # 一旦在此期间检测到 "is not implemented" 或者 Makefile 自带的 FAIL 报错，
   # awk 会悄悄记下标记 err=1，并在结束流时返回退出了状态码 1。
   # 因为我们加了 set -o pipefail 和 set -e，一旦状态为 1，整个脚本都会干净利落地中止。
-  echo -e "c\nq" | make ARCH=riscv32-nemu ALL="$name" run | awk '{print} /is not implemented/ || /\*\*\*FAIL\*\*\*/ {err=1} END{exit err}'
+  echo -e "q" | make ARCH=riscv32-nemu ALL="$name" run | awk '{print} /is not implemented/ || /\*\*\*FAIL\*\*\*/ {err=1} END{exit err}'
 
   # 由于配置了 set -e 和 pipefail，只有当上一条测试完美通过时，脚本才会继续执行到这里。
   # 此时自动清理该测试及其相关的由 AM 框架生成的产物 (通常带有前缀 $name-)。

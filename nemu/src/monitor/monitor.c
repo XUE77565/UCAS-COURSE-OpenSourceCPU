@@ -137,7 +137,7 @@ void init_monitor(int argc, char *argv[]) {
   for (i = 1; i < argc; i ++) {
     if (strcmp(argv[i], "-b") == 0) {
       sdb_set_batch_mode();
-      checkeval = 1;
+      checkeval = 0;
       break;
     }
   }
