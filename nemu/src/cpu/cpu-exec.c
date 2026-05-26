@@ -52,6 +52,26 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #endif
 }
 
+//打印指令执行的日志到iringbuf中，并在assert_fail时打印出iringbuf中的内容
+#ifdef CONFIG_ITRACE
+#define IRINGBUF_SIZE 16
+static char iringbuf[IRINGBUF_SIZE][128] = {0};
+static int iringbuf_ptr = 0;
+
+static void print_iringbuf() {
+  printf("Instruction Ring Buffer:\n");
+  for (int i = 0; i < IRINGBUF_SIZE; i++) {
+    int index = (iringbuf_ptr + i) % IRINGBUF_SIZE;
+    if (iringbuf[index][0] == '\0') continue;
+    if (i == IRINGBUF_SIZE - 1) {
+      printf("--> %s\n", iringbuf[index]);
+    } else {
+      printf("    %s\n", iringbuf[index]);
+    }
+  }
+}
+#endif
+
 //包括一条指令执行的全部阶段
 static void exec_once(Decode *s, vaddr_t pc) {
   s->pc = pc;
@@ -82,6 +102,9 @@ static void exec_once(Decode *s, vaddr_t pc) {
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst, ilen);
+//将s->logbuf保存到iringbuf中
+  strncpy(iringbuf[iringbuf_ptr], s->logbuf, 128);
+  iringbuf_ptr = (iringbuf_ptr + 1) % IRINGBUF_SIZE;
 #endif
 }
 
@@ -106,6 +129,10 @@ static void statistic() {
 }
 
 void assert_fail_msg() {
+  //如果asster_fail,打印出但不管前的ring
+#ifdef CONFIG_ITRACE
+  print_iringbuf();
+#endif
   isa_reg_display();
   statistic();
 }
@@ -136,6 +163,11 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
+#ifdef CONFIG_ITRACE
+      if (nemu_state.state == NEMU_ABORT || (nemu_state.state == NEMU_END && nemu_state.halt_ret != 0)) {
+        print_iringbuf();
+      }
+#endif
       // fall through
     case NEMU_QUIT: statistic();
   }
