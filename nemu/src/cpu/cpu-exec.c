@@ -30,6 +30,32 @@ uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
 
+extern const char *find_func_by_addr(uint32_t addr);
+
+#ifdef CONFIG_FTRACE
+static int call_depth = 0;
+
+static void trace_ftrace(vaddr_t pc, vaddr_t dnpc, uint32_t inst) {
+  uint32_t opcode = inst & 0x7f;
+  uint32_t rd = (inst >> 7) & 0x1f;
+  uint32_t rs1 = (inst >> 15) & 0x1f;
+
+  bool is_call = (opcode == 0x6f || opcode == 0x67) && (rd == 1 || rd == 5);
+  bool is_ret = (opcode == 0x67) && (rd == 0) && (rs1 == 1 || rs1 == 5);
+
+  if (is_call) {
+    const char *func_name = find_func_by_addr(dnpc);
+    printf("0x%08x: %*scall [%s@0x%08x]\n", (uint32_t)pc, call_depth * 2, "", func_name, (uint32_t)dnpc);
+    call_depth++;
+  } else if (is_ret) {
+    call_depth--;
+    if (call_depth < 0) call_depth = 0;
+    const char *func_name = find_func_by_addr(pc);
+    printf("0x%08x: %*sret  [%s]\n", (uint32_t)pc, call_depth * 2, "", func_name);
+  }
+}
+#endif
+
 void device_update();
 extern bool check_watchpoints();
 
@@ -106,6 +132,13 @@ static void exec_once(Decode *s, vaddr_t pc) {
   strncpy(iringbuf[iringbuf_ptr], s->logbuf, 128);
   iringbuf_ptr = (iringbuf_ptr + 1) % IRINGBUF_SIZE;
 #endif
+
+#ifdef CONFIG_FTRACE_COND
+  extern int func_symbol_count;
+  if (func_symbol_count > 0) {
+    trace_ftrace(s->pc, s->dnpc, s->isa.inst);
+  }
+#endif  
 }
 
 static void execute(uint64_t n) {

@@ -15,6 +15,7 @@
 
 #include <isa.h>
 #include <memory/paddr.h>
+#include <elf.h>
 #include "sdb/sdb.h"
 
 void init_rand();
@@ -45,6 +46,7 @@ void sdb_set_batch_mode();
 static char *log_file = NULL;
 static char *diff_so_file = NULL;
 static char *img_file = NULL;
+static char *elf_file = NULL;
 static int difftest_port = 1234;
 
 static long load_img() {
@@ -69,6 +71,109 @@ static long load_img() {
   return size;
 }
 
+//解析elf文件，获取函数符号表，并保存到func_symbols中
+typedef struct {
+  char name[32];
+  uint32_t addr;
+  uint32_t size;
+} FuncSymbol;
+
+FuncSymbol func_table[1024];
+int func_symbol_count = 0;
+
+const char *find_func_by_addr(uint32_t addr) {
+  for (int i = 0; i < func_symbol_count; i++) {
+    if (addr >= func_table[i].addr && addr < func_table[i].addr + func_table[i].size) {
+      return func_table[i].name;
+    }
+  }
+  return "???";
+}
+
+
+//初始化ftrace，主要用于解析elf文件
+void init_ftrace(const char*elf_file){
+  if(elf_file == NULL) {
+    Log("No elf file is given. Ftrace will be disabled.");
+    return;
+  }
+
+  FILE *fp = fopen(elf_file, "rb");
+  if(fp == NULL) {
+    Log("Can not open '%s'", elf_file);
+    return;
+  }
+
+  //读取elf文件头
+  Elf32_Ehdr elf_header;
+  if(fread(&elf_header, sizeof(Elf32_Ehdr), 1, fp) != 1) return;
+
+  //读取所有的节头
+  Elf32_Shdr *shdr = malloc(sizeof(Elf32_Shdr) * elf_header.e_shnum);
+  fseek(fp, elf_header.e_shoff, SEEK_SET);//fseek用于找到节头的位置，e_shoff是节头表的偏移地址
+  if(fread(shdr, sizeof(Elf32_Shdr), elf_header.e_shnum, fp) != elf_header.e_shnum) { free(shdr); return; } //读取字符串表
+
+  //找到符号表,和他对应的字符串表
+  Elf32_Shdr *symtab_shdr = NULL;
+  Elf32_Shdr *strtab_shdr = NULL;
+
+  for(int i = 0; i < elf_header.e_shnum; i++) {
+    if(shdr[i].sh_type == SHT_SYMTAB) {
+      symtab_shdr = &shdr[i];
+      //sh_link是字符串表的索引，所以shdr[i].sh_link就是字符串表的节头
+      //因为一个elf文件中可能有多个字符串表，所以要根据sh_link来找到符号表对应的对应的字符串表
+      strtab_shdr = &shdr[shdr[i].sh_link];
+      break;
+
+    }
+  }
+
+  if(symtab_shdr == NULL) {
+    Log("No symbol table found in '%s'", elf_file);
+    free(shdr);
+    fclose(fp);
+    return;
+  }
+
+  if(strtab_shdr == NULL) {
+    Log("No string table found for symbol table in '%s'", elf_file);
+    free(shdr);
+    fclose(fp);
+    return;
+  }
+
+  //将整个字符串表读如内存，以便稍后读取名字
+  char *strtab = malloc(strtab_shdr->sh_size);
+  fseek(fp, strtab_shdr->sh_offset, SEEK_SET);
+  if(fread(strtab, strtab_shdr->sh_size, 1, fp) != 1) { free(strtab); free(shdr); return; }
+
+  //便利符号表，提取函数信息
+  int symbol_count = symtab_shdr->sh_size / symtab_shdr->sh_entsize;//符号的数量等于大小除结构体的大小
+  Elf32_Sym *symtab = malloc(symtab_shdr->sh_size);
+  fseek(fp, symtab_shdr->sh_offset, SEEK_SET);
+  if(fread(symtab, symtab_shdr->sh_size, 1, fp) != 1) { free(symtab); free(strtab); free(shdr); return; } //将符号表全部读出来
+
+  //开始便利，寻找func
+  for(int i = 0; i < symbol_count; i++) {
+    if(ELF32_ST_TYPE(symtab[i].st_info) == STT_FUNC) {
+      //如果是函数，就保存到func_table中
+      //要注意符号表中的名字是一个偏移量，要加上字符串表的地址才能得到真正的名字
+      strncpy(func_table[func_symbol_count].name, strtab + symtab[i].st_name, 31);
+      func_table[func_symbol_count].addr = symtab[i].st_value;
+      func_table[func_symbol_count].size = symtab[i].st_size;
+      func_symbol_count++;
+    }
+  }
+
+  //扫尾
+  free(strtab);
+  free(symtab);
+  free(shdr);
+  fclose(fp);
+
+  printf("Loaded %d function symbols from '%s'\n", func_symbol_count, elf_file);
+}
+
 static int parse_args(int argc, char *argv[]) {
   const struct option table[] = {
     {"batch"    , no_argument      , NULL, 'b'},
@@ -76,15 +181,18 @@ static int parse_args(int argc, char *argv[]) {
     {"diff"     , required_argument, NULL, 'd'},
     {"port"     , required_argument, NULL, 'p'},
     {"help"     , no_argument      , NULL, 'h'},
+    //添加elf
+    {"elf"      , required_argument, NULL, 'e'},
     {0          , 0                , NULL,  0 },
   };
   int o;
-  while ( (o = getopt_long(argc, argv, "-bhl:d:p:", table, NULL)) != -1) {
+  while ( (o = getopt_long(argc, argv, "-bhl:d:p:e:", table, NULL)) != -1) {
     switch (o) {
       case 'b': sdb_set_batch_mode(); break;
       case 'p': sscanf(optarg, "%d", &difftest_port); break;
       case 'l': log_file = optarg; break;
       case 'd': diff_so_file = optarg; break;
+      case 'e': elf_file = optarg; break;
       case 1: img_file = optarg; return 0;
       default:
         printf("Usage: %s [OPTION...] IMAGE [args]\n\n", argv[0]);
@@ -92,12 +200,15 @@ static int parse_args(int argc, char *argv[]) {
         printf("\t-l,--log=FILE           output log to FILE\n");
         printf("\t-d,--diff=REF_SO        run DiffTest with reference REF_SO\n");
         printf("\t-p,--port=PORT          run DiffTest with port PORT\n");
+        printf("\t-e,--elf=ELF            run with ELF file to trace function\n");
         printf("\n");
         exit(0);
     }
   }
   return 0;
 }
+
+
 
 void init_monitor(int argc, char *argv[]) {
   /* Perform some global initialization. */
@@ -128,6 +239,14 @@ void init_monitor(int argc, char *argv[]) {
 
   /* Initialize the simple debugger. */
   init_sdb();
+
+  #ifdef CONFIG_FTRACE_COND
+    /* Initialize ftrace with ELF file */
+    if(FTRACE_COND) {
+      void init_ftrace(const char *elf_file);
+      init_ftrace(elf_file);
+    }
+  #endif
 
   IFDEF(CONFIG_ITRACE, init_disasm());
 
