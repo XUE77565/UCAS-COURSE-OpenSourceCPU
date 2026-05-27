@@ -11,9 +11,9 @@
 !.gitignore
 !init.sh
 !testall.sh
+!/am-kernels/*
 <<<<<<< HEAD
 /fceux-am
 =======
 /nvboard
 /fceux-am
-/am-kernels
