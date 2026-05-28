@@ -17,8 +17,19 @@
 #include <cpu/difftest.h>
 #include "../local-include/reg.h"
 
+//检查ref的dut的reg是否一直
 bool isa_difftest_checkregs(CPU_state *ref_r, vaddr_t pc) {
-  return false;
+  for(int i = 0; i < 32; i++) {
+    if(ref_r->gpr[i] != cpu.gpr[i]) {
+      printf("reg %d is different: ref = " FMT_WORD ", dut = " FMT_WORD "\n", i, ref_r->gpr[i], cpu.gpr[i]);
+      return false;
+    }
+  }
+  if(ref_r->pc != cpu.pc) {
+    printf("pc is different: ref = " FMT_WORD ", dut = " FMT_WORD "\n", ref_r->pc, cpu.pc);
+    return false;
+  }
+  return true;
 }
 
 void isa_difftest_attach() {
