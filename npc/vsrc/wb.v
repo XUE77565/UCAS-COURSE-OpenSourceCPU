@@ -2,6 +2,7 @@
 
 // DPI-C导入, 用于在ebreak时通知仿真环境结束
 import "DPI-C" function void set_ebreak();
+import "DPI-C" function void pmem_write(input int addr, input int data, char mask);
 
 module wb_stage (
         //时钟和复位信号

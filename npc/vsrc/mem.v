@@ -1,22 +1,24 @@
 `include "define.v"
 
+import "DPI-C" function int pmem_read(int raddr);
+import "DPI-C" function void pmem_write(input int addr, input int data, input char mask);
+
 module mem_stage(
     //时钟和复位信号
     input   clk,
     input   rst,
-       
-       	//Memory request channel
-	output [31:0] Address,
-	output        MemWrite,
-	output [31:0] Write_data,
-	output [ 3:0] Write_strb,
-	output        MemRead,
-	input         Mem_Req_Ready,
+        //Memory request channel
+        output [31:0] Address,
+        output        MemWrite,
+        output [31:0] Write_data,
+        output [ 3:0] Write_strb,
+        output        MemRead,
+        input         Mem_Req_Ready,
 
-	//Memory data response channel
-	input  [31:0] Read_data,
-	input         Read_data_Valid,
-	output        Read_data_Ready,
+        //Memory data response channel
+        input  [31:0] Read_data,
+        input         Read_data_Valid,
+        output        Read_data_Ready,
 
     //来自其他模块的数据
     input   [`EX_TO_MEM_WIDTH-1:0]   EX_to_MEM_data,
@@ -118,11 +120,11 @@ always @(*) begin
                         end
                 end
                 SL: begin
-                        //Load会进入RDW阶段等待读出数据握手
-                        if(load && Mem_Req_Ready) begin
-                                MEM_next_state = RDW;
+                        //DPI-C: 读写立即完成, 无需等待外部握手
+                        if(load) begin
+                                MEM_next_state = SL_DONE;
                         end
-                        else if(store && Mem_Req_Ready) begin
+                        else if(store) begin
                                 MEM_next_state = SL_DONE;
                         end
                         else begin
@@ -176,14 +178,21 @@ assign  MEM_done    =   (MEM_current_state==SL_DONE);
 assign  MEM_ready   =   ~MEM_work || (MEM_done && WB_ready);
 assign  MEM_to_WB_valid  = MEM_done && MEM_work;
 
-//读数据
+//读数据: 通过DPI-C直接从内存读取
 reg [31:0]      Read_data_current;
 always @(posedge clk) begin
         if(rst) begin
                 Read_data_current  <=  32'b0;
         end
-        else if (Read_data_Ready && Read_data_Valid) begin
-                Read_data_current  <=  Read_data;
+        else if (MEM_current_state == SL && load) begin
+                Read_data_current  <=  pmem_read(Address);
+        end
+end
+
+//写数据: 通过DPI-C直接写入内存
+always @(posedge clk) begin
+        if (MEM_current_state == SL && store) begin
+                pmem_write(Address, Write_data, Write_strb);
         end
 end
 
