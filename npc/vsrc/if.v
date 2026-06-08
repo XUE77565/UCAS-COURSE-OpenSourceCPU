@@ -13,7 +13,7 @@ module if_stage(
 
     //有关IF的握手信号
     output          Inst_Req_Valid,
-	input           Inst_Req_Ready,
+    input           Inst_Req_Ready,
 
     //向下一模块传输的数据
     output  [`IF_TO_ID_WIDTH-1:0]      IF_to_ID_data,

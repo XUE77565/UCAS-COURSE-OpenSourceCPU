@@ -20,9 +20,12 @@ module id_stage(
 
         //和其他模块的握手信号
         output          ID_ready,
-        output          ID_to_EX_valid, 
+        output          ID_to_EX_valid,
         input           IF_to_ID_valid,
-        input           EX_ready
+        input           EX_ready,
+
+        // 导出 a0 寄存器值, 用于 ebreak 退出码
+        output [31:0]   a0_out
 );
 
 reg [`IF_TO_ID_WIDTH-1:0] IF_to_ID_data_reg;
@@ -181,7 +184,8 @@ regfile reg_file_ex(
 	.wen		(WB_wen),
 	.wdata		(WB_data),
 	.rdata1		(rdata1),
-	.rdata2		(rdata2)
+	.rdata2		(rdata2),
+	.a0_out		(a0_out)
 );
 
 

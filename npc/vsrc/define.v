@@ -1,5 +1,6 @@
 //define the operation
 `define DATA_WIDTH 32
+`define ADDR_WIDTH 5
 `define AND  3'b000
 `define OR   3'b001
 `define XOR  3'b100

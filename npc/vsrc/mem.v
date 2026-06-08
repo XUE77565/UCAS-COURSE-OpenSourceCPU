@@ -1,7 +1,7 @@
 `include "define.v"
 
 import "DPI-C" function int pmem_read(int raddr);
-import "DPI-C" function void pmem_write(input int addr, input int data, input char mask);
+import "DPI-C" function void pmem_write(input int addr, input int data, input bit[3:0] mask);
 
 module mem_stage(
     //时钟和复位信号

@@ -47,7 +47,10 @@ module custom_cpu(
 	output [31:0] cpu_perf_cnt_14,
 	output [31:0] cpu_perf_cnt_15,
 
-	output [69:0] inst_retire
+	output [69:0] inst_retire,
+
+	// 导出 a0 寄存器值, 用于 ebreak 退出码
+	output [31:0] a0_out
 );
 
 //分支预测的信号
@@ -108,7 +111,8 @@ id_stage	ID_EX(
 	.ID_ready		(ID_ready),
 	.ID_to_EX_valid		(ID_to_EX_valid),
 	.IF_to_ID_valid		(IF_to_ID_valid),
-	.EX_ready		(EX_ready)
+	.EX_ready		(EX_ready),
+		.a0_out			(a0_out)
 );
 
 
